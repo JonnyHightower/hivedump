@@ -30,7 +30,7 @@ BINPREFIX=/usr
 # I use this uninstaller for different applications
 APPNAME=hivedump
 
-if [ -d "${PREFIX}/share/${APPNAME}/upload" ]; then
+if [ -d "${PREFIX}/share/${APPNAME}/" ]; then
 	echo "Removing ${APPNAME}"
 	rm -r "${PREFIX}/share/${APPNAME}/"
 	if [ -L "${BINPREFIX}/bin/${APPNAME}" ]; then

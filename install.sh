@@ -55,10 +55,11 @@ if [ $DEPERR -gt 0 ]; then
 	exit $DEPERR
 fi
 
-if [ ! -d ${PREFIX}/share/$APPNAME ]; then
+if [ ! -d "${PREFIX}/share/$APPNAME" ]; then
+	mkdir -p "${PREFIX}/share/${APPNAME}/"
 	if [ -d upload ]; then
-		cp -Rp upload/ "${PREFIX}/share/${APPNAME}/"
-		if [ -d "${PREFIX}/share/${APPNAME}/upload" ]; then
+		cp -a upload "${PREFIX}/share/${APPNAME}/"
+		if [ -d "${PREFIX}/share/${APPNAME}/" ]; then
 			cat $APPNAME | sed -e "s?APPLICATIONBASEDIRECTORY?${PREFIX}/share/$APPNAME?" > ${PREFIX}/share/$APPNAME/$APPNAME
 			chmod -R 555 ${PREFIX}/share/$APPNAME/
 			ln -s "${PREFIX}/share/$APPNAME/$APPNAME" "${BINPREFIX}/bin/$APPNAME"

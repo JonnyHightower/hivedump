@@ -29,10 +29,10 @@ my ($host,$user,$pass);
 my $VERSION="1.1";
 
 if (exists($ENV{'IP'})){
-	($user,$pass)=$@;
+	($user,$pass)=@ARGV;
 	$host=$ENV{'IP'};
 } else {
-	($host,$user,$pass)=$@;
+	($host,$user,$pass)=@ARGV;
 }
 
 if (!defined($pass)){
@@ -301,8 +301,8 @@ sub upload {
 		$remote =~ s/^[\S\s]+\/(\S+)$/$1/;
 	}
 	my $rc=1;
-	if (-f "${uploads}/upload/$file"){
-		$rc=system("smbclient //${host}/ADMIN\$ -U \"$user\" \"$pass\" -c \"PUT ${uploads}/upload/$file $REMOTE_DIR\\$remote\" >/dev/null 2>&1");
+	if (-f "${uploads}/$file"){
+		$rc=system("smbclient //${host}/ADMIN\$ -U \"$user\" \"$pass\" -c \"PUT ${uploads}/$file $REMOTE_DIR\\$remote\" >/dev/null 2>&1");
 		$rc = $rc>>8;
 	}
 	return $rc;
